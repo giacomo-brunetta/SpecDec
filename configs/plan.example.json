@@ -1,0 +1,35 @@
+{
+  "server": {
+    "model": "/PATH/TO/models/gemma-4-31B-it",
+    "served_model_name": "gemma-4-31B-it",
+    "dtype": "bfloat16",
+    "tensor_parallel_size": 1,
+    "pipeline_parallel_size": 2,
+    "max_model_len": 4096,
+    "gpu_memory_utilization": 0.84,
+    "host": "127.0.0.1",
+    "port": 8000,
+    "extra_args": ["--enforce-eager"]
+  },
+  "scenarios": {
+    "baseline": {
+      "enabled": true,
+      "method": "none",
+      "speculative_config": null,
+      "per_request_spec_decode_metrics": "none",
+      "extra_args": []
+    },
+    "speculative_template": {
+      "enabled": false,
+      "method": "replace-with-method-label",
+      "speculative_config": {
+        "method": "draft_model",
+        "model": "/PATH/TO/models/gemma-4-E2B-it",
+        "num_speculative_tokens": 4,
+        "draft_tensor_parallel_size": 1
+      },
+      "per_request_spec_decode_metrics": "detailed",
+      "extra_args": []
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "request_count": 6,
+  "successful_requests": 6,
+  "failed_requests": 0,
+  "wall_time_seconds": 47.07648252695799,
+  "requests_per_second": 0.127452173100744,
+  "prompt_tokens": 582,
+  "completion_tokens": 1632,
+  "completion_tokens_per_second": 34.666991083402365,
+  "latency_ms": {
+    "mean": 7845.708887170379,
+    "p50": 7848.558614961803,
+    "p90": 7862.427131971344,
+    "p99": 7862.427131971344
+  },
+  "speculative_decoding": {
+    "requests_with_metrics": 0,
+    "requests_without_metrics": 6,
+    "num_accepted_draft_tokens": 0,
+    "num_draft_tokens": 0,
+    "num_spec_steps": 0,
+    "draft_acceptance_rate": null,
+    "mean_accepted_draft_tokens_per_step": null,
+    "mean_acceptance_length_including_bonus": null
+  }
+}

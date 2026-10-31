@@ -1,0 +1,18 @@
+{
+  "started_at": "2026-10-30T19:57:44.015998+00:00",
+  "method": "baseline-smoke",
+  "model": "gemma-4-31B-it",
+  "endpoint": "http://127.0.0.1:8000/v1/chat/completions",
+  "dataset": "./datasets/smoke.jsonl",
+  "dataset_rows": 1,
+  "request_count": 2,
+  "warmup_requests": 1,
+  "concurrency": 1,
+  "repeat": 2,
+  "max_tokens": 128,
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "seed": null,
+  "extra_body": {},
+  "prometheus_metrics_url": "http://127.0.0.1:8000/metrics"
+}

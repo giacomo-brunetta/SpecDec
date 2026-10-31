@@ -1,0 +1,16 @@
+# Local checkpoints and secrets
+models/
+.env
+*.token
+
+# Build products and Python caches
+__pycache__/
+*.py[cod]
+*.whl
+build/
+dist/
+
+# Incomplete/out-of-scope single-GPU high-concurrency checks
+results/20261030-201044_single-nvfp4-prompt350-c32/
+results/20261030-201534_single-nvfp4-prompt350-c32-maxseq4/
+results/20261030-201549_single-nvfp4-prompt350-c64-maxseq4/

@@ -1,0 +1,18 @@
+{
+  "started_at": "2026-10-30T23:52:19.658263+00:00",
+  "method": "pp2-bf16-eager-prompt350-c4",
+  "model": "gemma-4-31B-it-bf16-pp2",
+  "endpoint": "http://127.0.0.1:8000/v1/chat/completions",
+  "dataset": "./datasets/prompt_350.jsonl",
+  "dataset_rows": 1,
+  "request_count": 8,
+  "warmup_requests": 1,
+  "concurrency": 4,
+  "repeat": 8,
+  "max_tokens": 350,
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "seed": null,
+  "extra_body": {},
+  "prometheus_metrics_url": "http://127.0.0.1:8000/metrics"
+}

@@ -1,0 +1,17 @@
+name: vLLM_latest
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - setuptools
+  - wheel
+  - packaging
+  - git
+  - cmake
+  - ninja
+  - ccache
+  - z3-solver
+  - cuda-toolkit=12.6.2
+  - gcc_linux-aarch64=13
+  - gxx_linux-aarch64=13

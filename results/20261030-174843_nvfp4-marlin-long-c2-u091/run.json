@@ -1,0 +1,18 @@
+{
+  "started_at": "2026-10-30T22:48:43.476556+00:00",
+  "method": "nvfp4-marlin-long-c2-u091",
+  "model": "gemma-4-31B-it-nvfp4",
+  "endpoint": "http://127.0.0.1:8000/v1/chat/completions",
+  "dataset": "./datasets/long_context_1600.jsonl",
+  "dataset_rows": 1,
+  "request_count": 4,
+  "warmup_requests": 2,
+  "concurrency": 2,
+  "repeat": 4,
+  "max_tokens": 384,
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "seed": null,
+  "extra_body": {},
+  "prometheus_metrics_url": "http://127.0.0.1:8000/metrics"
+}
