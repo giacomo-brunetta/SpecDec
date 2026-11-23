@@ -1,0 +1,128 @@
+[
+  {
+    "request_id": "gemma-smoke-1",
+    "steps": [
+      {
+        "output_offset": 1,
+        "prefix_length": 29,
+        "draft_token_ids": [
+          2430,
+          8150,
+          496,
+          63510
+        ],
+        "accepted_token_ids": [],
+        "target_token_id": 7217,
+        "next_prefix_length": 30
+      },
+      {
+        "output_offset": 2,
+        "prefix_length": 30,
+        "draft_token_ids": [
+          7412,
+          3730,
+          1913,
+          496
+        ],
+        "accepted_token_ids": [
+          7412,
+          3730
+        ],
+        "target_token_id": 2779,
+        "next_prefix_length": 33
+      },
+      {
+        "output_offset": 5,
+        "prefix_length": 33,
+        "draft_token_ids": [
+          531,
+          496,
+          20284,
+          2760
+        ],
+        "accepted_token_ids": [
+          531,
+          496,
+          20284,
+          2760
+        ],
+        "target_token_id": 5213,
+        "next_prefix_length": 38
+      },
+      {
+        "output_offset": 10,
+        "prefix_length": 38,
+        "draft_token_ids": [
+          30958,
+          53700
+        ],
+        "accepted_token_ids": [
+          30958,
+          53700
+        ],
+        "target_token_id": 19389,
+        "next_prefix_length": 41
+      }
+    ],
+    "num_spec_steps": 4,
+    "num_draft_tokens": 14,
+    "num_accepted_draft_tokens": 8
+  },
+  {
+    "request_id": "gemma-smoke-2",
+    "steps": [
+      {
+        "output_offset": 1,
+        "prefix_length": 25,
+        "draft_token_ids": [
+          236761,
+          138,
+          1018,
+          115863
+        ],
+        "accepted_token_ids": [],
+        "target_token_id": 236764,
+        "next_prefix_length": 26
+      },
+      {
+        "output_offset": 2,
+        "prefix_length": 26,
+        "draft_token_ids": [
+          236743,
+          236778,
+          236764,
+          236743
+        ],
+        "accepted_token_ids": [
+          236743,
+          236778,
+          236764,
+          236743
+        ],
+        "target_token_id": 236800,
+        "next_prefix_length": 31
+      },
+      {
+        "output_offset": 7,
+        "prefix_length": 31,
+        "draft_token_ids": [
+          236764,
+          236743,
+          236812,
+          236764
+        ],
+        "accepted_token_ids": [
+          236764,
+          236743,
+          236812,
+          236764
+        ],
+        "target_token_id": 236743,
+        "next_prefix_length": 36
+      }
+    ],
+    "num_spec_steps": 3,
+    "num_draft_tokens": 12,
+    "num_accepted_draft_tokens": 8
+  }
+]

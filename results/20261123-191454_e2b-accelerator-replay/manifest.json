@@ -1,0 +1,95 @@
+{
+  "plan": "plan.json",
+  "dataset": "dataset.jsonl",
+  "baseline": "baseline",
+  "drafter_scenario": "drafter_capture",
+  "max_requests": 2,
+  "max_tokens": 13,
+  "warmup_requests": 1,
+  "stream": true,
+  "concurrency": [
+    1,
+    2
+  ],
+  "draft_lengths": [
+    4
+  ],
+  "profiles": {
+    "resident_kv": {
+      "round_trip_ms": 0.5,
+      "first_token_ms": 0.5,
+      "tbt_ms": 0.2,
+      "upload_prompt_tokens": true,
+      "upload_bytes_per_second": 1250000000,
+      "download_bytes_per_second": 1250000000,
+      "kv_transfer": "none"
+    }
+  },
+  "dataset_sha256": "405d6f51afdca772f723a8e03b7261bbefa9a583bdbbf3d55478931eaaa50693",
+  "target": {
+    "model": "/home/gbrun/models/gemma-4-31B-it",
+    "served_model_name": "gemma-4-31B-it",
+    "dtype": "bfloat16",
+    "tensor_parallel_size": 1,
+    "pipeline_parallel_size": 2,
+    "max_model_len": 512,
+    "gpu_memory_utilization": 0.91,
+    "host": "127.0.0.1",
+    "port": 8000,
+    "extra_args": [
+      "--enforce-eager",
+      "--language-model-only",
+      "--max-num-seqs",
+      "8",
+      "--max-num-batched-tokens",
+      "512",
+      "--no-async-scheduling"
+    ]
+  },
+  "baseline_config": {
+    "enabled": true,
+    "method": "none",
+    "speculative_config": null,
+    "per_request_spec_decode_metrics": "none",
+    "extra_args": []
+  },
+  "drafter": {
+    "model": "/home/gbrun/models/gemma-4-E2B-it",
+    "served_model_name": "gemma-4-E2B-it",
+    "dtype": "bfloat16",
+    "tensor_parallel_size": 1,
+    "pipeline_parallel_size": 1,
+    "max_model_len": 512,
+    "gpu_memory_utilization": 0.55,
+    "host": "127.0.0.1",
+    "port": 8000,
+    "extra_args": [
+      "--enforce-eager",
+      "--language-model-only",
+      "--max-num-seqs",
+      "8",
+      "--max-num-batched-tokens",
+      "512"
+    ]
+  },
+  "drafter_config": {
+    "enabled": true,
+    "method": "standalone",
+    "server_overrides": {
+      "model": "/home/gbrun/models/gemma-4-E2B-it",
+      "served_model_name": "gemma-4-E2B-it",
+      "pipeline_parallel_size": 1,
+      "gpu_memory_utilization": 0.55,
+      "extra_args": [
+        "--enforce-eager",
+        "--language-model-only",
+        "--max-num-seqs",
+        "8",
+        "--max-num-batched-tokens",
+        "512"
+      ]
+    },
+    "speculative_config": null,
+    "per_request_spec_decode_metrics": "none"
+  }
+}

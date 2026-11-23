@@ -9,7 +9,9 @@
     "gpu_memory_utilization": 0.84,
     "host": "127.0.0.1",
     "port": 8000,
-    "extra_args": ["--enforce-eager"]
+    "extra_args": [
+      "--enforce-eager"
+    ]
   },
   "scenarios": {
     "baseline": {
@@ -30,6 +32,20 @@
       },
       "per_request_spec_decode_metrics": "detailed",
       "extra_args": []
+    },
+    "drafter_capture": {
+      "enabled": true,
+      "method": "standalone",
+      "server_overrides": {
+        "model": "/PATH/TO/models/gemma-4-E2B-it",
+        "served_model_name": "gemma-4-E2B-it",
+        "pipeline_parallel_size": 1,
+        "gpu_memory_utilization": 0.55,
+        "extra_args": [
+          "--enforce-eager",
+          "--language-model-only"
+        ]
+      }
     }
   }
 }

@@ -18,18 +18,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
-    args = parse_args()
+def read_scenario(path: Path, name: str) -> tuple[dict, dict]:
     try:
-        plan = json.loads(args.plan.read_text(encoding="utf-8"))
+        plan = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"Could not read plan {args.plan}: {exc}") from exc
+        raise SystemExit(f"Could not read plan {path}: {exc}") from exc
     server: dict[str, Any] = plan.get("server", {})
-    scenario: dict[str, Any] | None = plan.get("scenarios", {}).get(args.scenario)
+    scenario: dict[str, Any] | None = plan.get("scenarios", {}).get(name)
     if scenario is None:
-        raise SystemExit(f"Scenario {args.scenario!r} is not in {args.plan}")
+        raise SystemExit(f"Scenario {name!r} is not in {path}")
     if not scenario.get("enabled", False):
-        raise SystemExit(f"Scenario {args.scenario!r} is disabled in {args.plan}")
+        raise SystemExit(f"Scenario {name!r} is disabled in {path}")
+    return {**server, **scenario.get("server_overrides", {})}, scenario
+
+
+def build_command(server: dict, scenario: dict) -> list[str]:
     executable = shutil.which("vllm")
     if executable is None:
         raise SystemExit("vllm executable not found; activate the intended environment first")
@@ -63,6 +66,12 @@ def main() -> int:
         command.extend(("--speculative-config", json.dumps(speculative_config, separators=(",", ":"))))
     command.extend(str(item) for item in server.get("extra_args", []))
     command.extend(str(item) for item in scenario.get("extra_args", []))
+    return command
+
+
+def main() -> int:
+    args = parse_args()
+    command = build_command(*read_scenario(args.plan, args.scenario))
     print("Starting:", " ".join(command), flush=True)
     try:
         return subprocess.run(command, check=False).returncode

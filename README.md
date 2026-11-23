@@ -79,3 +79,10 @@ python -m specdec.summarize results/*/summary.json --output results/comparison.c
 The scripts do not select datasets, tune speculative-token counts, run
 benchmarks, or infer a preferred method. Those choices can be filled in once
 the experiment plan is settled.
+
+
+## Accelerator replay
+
+See [the replay guide](docs/replay.md) for a two-A100 verification smoke test,
+the paired driver for real drafter traces, and the configurable accelerator
+latency model.

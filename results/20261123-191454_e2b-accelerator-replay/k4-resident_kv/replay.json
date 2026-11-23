@@ -1,0 +1,13 @@
+{
+  "trace": "../trace.jsonl",
+  "latency": {
+    "round_trip_ms": 0.5,
+    "first_token_ms": 0.5,
+    "tbt_ms": 0.2,
+    "upload_prompt_tokens": true,
+    "upload_bytes_per_second": 1250000000,
+    "download_bytes_per_second": 1250000000,
+    "kv_transfer": "none"
+  },
+  "log": "steps.jsonl"
+}

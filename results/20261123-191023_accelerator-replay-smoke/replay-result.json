@@ -1,0 +1,81 @@
+{
+  "index": 0,
+  "request_id": "request-000000",
+  "metadata": null,
+  "started_at": "2026-11-23T19:10:01.316236+00:00",
+  "status": "ok",
+  "latency_ms": 1105.6878361850977,
+  "http_status": 200,
+  "prompt_tokens": 24,
+  "completion_tokens": 13,
+  "total_tokens": 37,
+  "speculative_decoding": {
+    "mean_acceptance_length": 4.0,
+    "draft_acceptance_rate": 0.75,
+    "acceptance_histogram": [
+      0,
+      1,
+      0,
+      0,
+      2
+    ],
+    "num_spec_steps": 3,
+    "num_accepted_draft_tokens": 9,
+    "num_draft_tokens": 12,
+    "num_spec_tokens": 4,
+    "per_step_accepted": [
+      1,
+      4,
+      4
+    ],
+    "per_step_drafted": [
+      4,
+      4,
+      4
+    ]
+  },
+  "error": null,
+  "finish_reason": "length",
+  "prompt_token_ids": [
+    2,
+    105,
+    2364,
+    107,
+    1613,
+    506,
+    4414,
+    25630,
+    528,
+    1900,
+    236764,
+    6250,
+    657,
+    886,
+    236761,
+    106,
+    107,
+    105,
+    4368,
+    107,
+    100,
+    45518,
+    107,
+    101
+  ],
+  "token_ids": [
+    236770,
+    236764,
+    236743,
+    236778,
+    236764,
+    236743,
+    236800,
+    236764,
+    236743,
+    236812,
+    236764,
+    236743,
+    236810
+  ],
+  "response_id": "chatcmpl-b6630a69876c3468"
+}

@@ -1,0 +1,73 @@
+diff --git a/vllm/v1/worker/gpu_model_runner.py b/vllm/v1/worker/gpu_model_runner.py
+--- a/vllm/v1/worker/gpu_model_runner.py
++++ b/vllm/v1/worker/gpu_model_runner.py
+@@ -2480,6 +2480,7 @@
+         # Prepare the attention metadata for each KV cache group and make layers
+         # in the same group share the same metadata.
+         spec_decode_common_attn_metadata = None
++        drafter = getattr(self, "drafter", None)
+         for kv_cache_gid, kv_cache_group in enumerate(kv_cache_groups):
+             cm = copy(cm_base)  # shallow copy
+ 
+@@ -2495,9 +2496,9 @@
+                 cm.block_table_tensor = _get_block_table(kv_cache_gid)
+                 cm.slot_mapping = slot_mappings[kv_cache_gid]
+ 
+-            if self.speculative_config and spec_decode_common_attn_metadata is None:
++            if drafter is not None and spec_decode_common_attn_metadata is None:
+                 if isinstance(
+-                    self.drafter,
++                    drafter,
+                     (
+                         EagleProposer,
+                         DFlashProposer,
+@@ -2505,19 +2506,17 @@
+                         ExtractHiddenStatesProposer,
+                     ),
+                 ):
+-                    if self.drafter.kv_cache_gid == kv_cache_gid:
++                    if drafter.kv_cache_gid == kv_cache_gid:
+                         spec_decode_common_attn_metadata = cm
+                 else:
+                     spec_decode_common_attn_metadata = cm
+             # Capture per-group block tables for multi-group proposers.
+-            if self.speculative_config and isinstance(self.drafter, Step3p5MTPProposer):
+-                self.drafter.set_per_group_attn_metadata(
++            if isinstance(drafter, Step3p5MTPProposer):
++                drafter.set_per_group_attn_metadata(
+                     kv_cache_gid, cm.block_table_tensor, cm.slot_mapping
+                 )
+-            elif self.speculative_config and isinstance(self.drafter, Gemma4Proposer):
+-                self.drafter.set_per_group_block_table(
+-                    kv_cache_gid, cm.block_table_tensor
+-                )
++            elif isinstance(drafter, Gemma4Proposer):
++                drafter.set_per_group_block_table(kv_cache_gid, cm.block_table_tensor)
+ 
+             for attn_gid in range(len(self.attn_groups[kv_cache_gid])):
+                 if ubatch_slices is not None:
+@@ -6948,7 +6947,7 @@
+             2 if self.model_config.hf_config.model_type == "longcat_flash" else 1
+         )
+         attn_groups = [g for groups in self.attn_groups for g in groups]
+-        if self.speculative_config:
++        if hasattr(self, "drafter"):
+             attn_groups += getattr(self.drafter, "draft_attn_groups", [])
+         bind_kv_cache(
+             kv_caches,
+diff --git a/vllm/config/vllm.py b/vllm/config/vllm.py
+--- a/vllm/config/vllm.py
++++ b/vllm/config/vllm.py
+@@ -604,6 +604,12 @@
+         # PP requires PP-size concurrent batches to fill the pipeline.
+         # Async scheduling requires 2 concurrent batches to overlap.
+         pp_size = self.parallel_config.pipeline_parallel_size
++        if (
++            pp_size > 1
++            and not self.scheduler_config.async_scheduling
++            and os.getenv("SPECDEC_SERIAL_PP") == "1"
++        ):
++            return 1
+         if self.scheduler_config.async_scheduling:
+             if self.use_v2_model_runner:
+                 return pp_size + 1

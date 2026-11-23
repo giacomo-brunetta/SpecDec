@@ -56,6 +56,8 @@ def request_body(
         "top_p": args.top_p,
         "n": 1,
     }
+    if getattr(args, "stream", False):
+        body.update(stream=True, return_token_ids=True, stream_options={"include_usage": True})
     if args.seed is not None:
         body["seed"] = args.seed
     if args.extra_body:
@@ -94,9 +96,12 @@ def post_chat(
     }
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+            if body.get("stream"):
+                payload, timing = read_stream(response, start)
+                record.update(timing)
+            else:
+                payload = json.loads(response.read().decode("utf-8"))
             record["http_status"] = response.status
-        record["status"] = "ok"
         usage = payload.get("usage") or {}
         record["prompt_tokens"] = usage.get("prompt_tokens")
         record["completion_tokens"] = usage.get("completion_tokens")
@@ -105,7 +110,11 @@ def post_chat(
         record["speculative_decoding"] = metrics.get("speculative_decoding")
         choices = payload.get("choices") or []
         record["finish_reason"] = choices[0].get("finish_reason") if choices else None
+        if body.get("return_token_ids"):
+            record["prompt_token_ids"] = payload.get("prompt_token_ids")
+            record["token_ids"] = choices[0].get("token_ids") if choices else None
         record["response_id"] = payload.get("id")
+        record["status"] = "ok"
     except urllib.error.HTTPError as exc:
         record["http_status"] = exc.code
         try:
@@ -116,6 +125,46 @@ def post_chat(
         record["error"] = f"{type(exc).__name__}: {exc}"
     record["latency_ms"] = (time.perf_counter() - start) * 1000.0
     return record
+
+
+def read_stream(response, started: float) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Collect vLLM SSE chunks and time arrivals that contain output tokens."""
+    payload: dict[str, Any] = {"choices": []}
+    choice: dict[str, Any] = {"token_ids": []}
+    chunks = []
+    done = False
+    for line in response:
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        if not line.startswith(b"data:"):
+            continue
+        data = line[5:].strip()
+        if data == b"[DONE]":
+            done = True
+            break
+        event = json.loads(data)
+        if event.get("error"):
+            raise RuntimeError(f"Streaming request failed: {event['error']}")
+        for key in ("id", "usage", "metrics", "prompt_token_ids"):
+            if event.get(key) is not None:
+                payload[key] = event[key]
+        for delta in event.get("choices", []):
+            tokens = delta.get("token_ids") or []
+            if tokens:
+                chunks.append({"elapsed_ms": elapsed_ms, "tokens": len(tokens)})
+                choice["token_ids"].extend(tokens)
+            if delta.get("finish_reason") is not None:
+                choice["finish_reason"] = delta["finish_reason"]
+    if not done:
+        raise RuntimeError("Streaming response ended before [DONE]")
+    payload["choices"].append(choice)
+    return payload, {
+        "ttft_ms": chunks[0]["elapsed_ms"] if chunks else None,
+        "token_chunks": chunks,
+        "inter_chunk_ms": [
+            following["elapsed_ms"] - previous["elapsed_ms"]
+            for previous, following in zip(chunks, chunks[1:])
+        ],
+    }
 
 
 def scrape_prometheus(url: str | None, timeout: float) -> dict[str, float] | None:
@@ -202,7 +251,15 @@ def summarize(records: list[dict[str, Any]], wall_seconds: float) -> dict[str, A
             for i, count in enumerate(item.get("acceptance_histogram", [])):
                 hist[i] += int(count)
         acceptance["acceptance_histogram"] = hist
+    timing = {}
+    for name, values in (
+        ("ttft_ms", [r["ttft_ms"] for r in successful if r.get("ttft_ms") is not None]),
+        ("inter_chunk_ms", [gap for r in successful for gap in r.get("inter_chunk_ms", [])]),
+    ):
+        if values:
+            timing[name] = {f"p{p:.0f}": percentile(values, p / 100) for p in (50, 90, 99)}
     return {
+        **timing,
         "request_count": len(records),
         "successful_requests": len(successful),
         "failed_requests": len(records) - len(successful),
@@ -252,6 +309,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--top-p", type=float, default=1.0)
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--stream", action="store_true", help="Record output chunk latency")
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--api-key-env", default="SPECDEC_API_KEY")
     parser.add_argument("--extra-body", help="JSON object merged into each API request")
@@ -330,6 +388,7 @@ def main() -> int:
         "temperature": args.temperature,
         "top_p": args.top_p,
         "seed": args.seed,
+        "stream": args.stream,
         "extra_body": json.loads(args.extra_body) if args.extra_body else {},
         "prometheus_metrics_url": url,
     }

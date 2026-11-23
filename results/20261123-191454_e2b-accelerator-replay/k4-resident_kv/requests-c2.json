@@ -1,0 +1,228 @@
+[
+  {
+    "index": 0,
+    "request_id": "gemma-smoke-1",
+    "metadata": null,
+    "started_at": "2026-11-23T19:14:36.779012+00:00",
+    "status": "ok",
+    "latency_ms": 595.531536731869,
+    "http_status": 200,
+    "prompt_tokens": 28,
+    "completion_tokens": 13,
+    "total_tokens": 41,
+    "speculative_decoding": {
+      "mean_acceptance_length": 3.0,
+      "draft_acceptance_rate": 0.5714285714285714,
+      "acceptance_histogram": [
+        1,
+        0,
+        2,
+        0,
+        1
+      ],
+      "num_spec_steps": 4,
+      "num_accepted_draft_tokens": 8,
+      "num_draft_tokens": 14,
+      "num_spec_tokens": 4,
+      "per_step_accepted": [
+        0,
+        2,
+        4,
+        2
+      ],
+      "per_step_drafted": [
+        4,
+        4,
+        4,
+        2
+      ]
+    },
+    "error": null,
+    "ttft_ms": 113.64189861342311,
+    "token_chunks": [
+      {
+        "elapsed_ms": 113.64189861342311,
+        "tokens": 1
+      },
+      {
+        "elapsed_ms": 237.64101369306445,
+        "tokens": 1
+      },
+      {
+        "elapsed_ms": 371.02150404825807,
+        "tokens": 3
+      },
+      {
+        "elapsed_ms": 486.68796569108963,
+        "tokens": 5
+      },
+      {
+        "elapsed_ms": 595.0934169813991,
+        "tokens": 3
+      }
+    ],
+    "inter_chunk_ms": [
+      123.99911507964134,
+      133.38049035519361,
+      115.66646164283156,
+      108.40545129030943
+    ],
+    "finish_reason": "length",
+    "prompt_token_ids": [
+      2,
+      105,
+      2364,
+      107,
+      6974,
+      496,
+      63510,
+      15649,
+      26804,
+      3217,
+      506,
+      7217,
+      7412,
+      3730,
+      1913,
+      496,
+      3582,
+      1719,
+      236761,
+      106,
+      107,
+      105,
+      4368,
+      107,
+      100,
+      45518,
+      107,
+      101
+    ],
+    "token_ids": [
+      818,
+      7217,
+      7412,
+      3730,
+      2779,
+      531,
+      496,
+      20284,
+      2760,
+      5213,
+      30958,
+      53700,
+      19389
+    ],
+    "response_id": "chatcmpl-8ec4e56e9ed85b07"
+  },
+  {
+    "index": 0,
+    "request_id": "gemma-smoke-2",
+    "metadata": null,
+    "started_at": "2026-11-23T19:14:36.779570+00:00",
+    "status": "ok",
+    "latency_ms": 708.7942352518439,
+    "http_status": 200,
+    "prompt_tokens": 24,
+    "completion_tokens": 13,
+    "total_tokens": 37,
+    "speculative_decoding": {
+      "mean_acceptance_length": 3.6666666666666665,
+      "draft_acceptance_rate": 0.6666666666666666,
+      "acceptance_histogram": [
+        1,
+        0,
+        0,
+        0,
+        2
+      ],
+      "num_spec_steps": 3,
+      "num_accepted_draft_tokens": 8,
+      "num_draft_tokens": 12,
+      "num_spec_tokens": 4,
+      "per_step_accepted": [
+        0,
+        4,
+        4
+      ],
+      "per_step_drafted": [
+        4,
+        4,
+        4
+      ]
+    },
+    "error": null,
+    "ttft_ms": 237.44041426107287,
+    "token_chunks": [
+      {
+        "elapsed_ms": 237.44041426107287,
+        "tokens": 1
+      },
+      {
+        "elapsed_ms": 370.65470311790705,
+        "tokens": 1
+      },
+      {
+        "elapsed_ms": 486.3380850292742,
+        "tokens": 5
+      },
+      {
+        "elapsed_ms": 595.237497240305,
+        "tokens": 5
+      },
+      {
+        "elapsed_ms": 708.3398750983179,
+        "tokens": 1
+      }
+    ],
+    "inter_chunk_ms": [
+      133.21428885683417,
+      115.68338191136718,
+      108.89941221103072,
+      113.10237785801291
+    ],
+    "finish_reason": "length",
+    "prompt_token_ids": [
+      2,
+      105,
+      2364,
+      107,
+      1613,
+      506,
+      4414,
+      25630,
+      528,
+      1900,
+      236764,
+      6250,
+      657,
+      886,
+      236761,
+      106,
+      107,
+      105,
+      4368,
+      107,
+      100,
+      45518,
+      107,
+      101
+    ],
+    "token_ids": [
+      236770,
+      236764,
+      236743,
+      236778,
+      236764,
+      236743,
+      236800,
+      236764,
+      236743,
+      236812,
+      236764,
+      236743,
+      236810
+    ],
+    "response_id": "chatcmpl-ab3552db49d763bd"
+  }
+]
