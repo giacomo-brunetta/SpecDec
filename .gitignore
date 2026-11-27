@@ -14,3 +14,10 @@ dist/
 results/20261030-201044_single-nvfp4-prompt350-c32/
 results/20261030-201534_single-nvfp4-prompt350-c32-maxseq4/
 results/20261030-201549_single-nvfp4-prompt350-c64-maxseq4/
+
+# Local study outputs include licensed conversations and token traces.
+runs/
+results/*campaign*/
+results/*native-link*/
+results/gemma-tree-*/
+results/gemma-acceptance-depth/

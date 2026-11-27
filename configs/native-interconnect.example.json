@@ -9,14 +9,32 @@
     "extra_args": [
       "--language-model-only",
       "--enforce-eager",
-      "--max-num-seqs", "1",
-      "--max-num-batched-tokens", "1024",
+      "--max-num-seqs",
+      "1",
+      "--max-num-batched-tokens",
+      "1024",
       "--no-enable-chunked-prefill",
       "--no-enable-prefix-caching",
       "--no-async-scheduling"
     ]
   },
   "scenarios": {
-    "baseline": { "enabled": true }
+    "baseline": {
+      "enabled": true
+    }
+  },
+  "speculators": {
+    "eagle3": {
+      "model": "RedHatAI/gemma-4-31B-it-speculator.eagle3",
+      "k": 4,
+      "revision": "28a1c8b4bb64dbaee883ba35341841138bdf1fe3",
+      "activation_bytes_per_position": 32256
+    },
+    "dspark": {
+      "model": "RedHatAI/gemma-4-31B-it-speculator.dspark",
+      "k": 7,
+      "revision": "63e2877348caa03a2c58ab3c47224f4164af08c4",
+      "activation_bytes_per_position": 53760
+    }
   }
 }

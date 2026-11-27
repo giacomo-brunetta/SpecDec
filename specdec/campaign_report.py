@@ -9,7 +9,7 @@ import statistics
 from pathlib import Path
 
 from .campaign import K, MAX_TOKENS
-from .campaign_sweep import ACTIVE_PARAMS_B, LINKS, RATES, cells, latency_profile
+from .campaign_sweep import LINKS, RATES, cells, latency_profile
 from .experiment import expected_steps
 from .replay import load_trace
 
@@ -74,7 +74,7 @@ def modeled_link_ms(steps, link):
             + serialization_ms(steps, link))
 
 
-def project_speedup(gold, ideal, ideal_audits, matched, cell):
+def project_speedup(gold, ideal, ideal_audits, matched, cell, active_params):
     if not matched:
         return None
     model, link, compute = cell
@@ -84,7 +84,7 @@ def project_speedup(gold, ideal, ideal_audits, matched, cell):
     compute_ms = 0
     if rate:
         drafted = sum(ideal[key]["speculative_decoding"]["num_draft_tokens"] for key in matched)
-        compute_ms = 2 * ACTIVE_PARAMS_B[model] * drafted / rate
+        compute_ms = 2 * active_params[model] * drafted / rate
     greedy_ms = sum(gold[key]["latency_ms"] for key in matched)
     ideal_ms = sum(ideal[key]["latency_ms"] for key in matched)
     return greedy_ms / (ideal_ms + link_ms + compute_ms)
@@ -115,8 +115,9 @@ def report(output: Path) -> None:
         raise ValueError("Greedy request records differ from the baseline summary")
     greedy_rate = baseline_stats["completion_tokens_per_second"]
     params = read_json(output / "grid.json")
+    active_params = params["active_params_billions"]
     captures = {model: read_json(output / "traces" / model / "capture.json")
-                for model in (*ACTIVE_PARAMS_B, "oracle")}
+                for model in (*active_params, "oracle")}
     if any(capture["prefixes"] < 100 for capture in captures.values()):
         raise ValueError("A trace has too few unique prefixes for the 100-prompt workload")
     workload = read_json(output / "manifest.json")
@@ -125,20 +126,20 @@ def report(output: Path) -> None:
         workload_hash = hashlib.sha256(workload_path.read_bytes()).hexdigest()
         if workload_hash != workload["dataset_sha256"]:
             raise ValueError("Saved workload has changed since the baseline")
-    if params["order"] != [list(cell) for cell in cells()]:
+    if params["order"] != [list(cell) for cell in cells(active_params)]:
         raise ValueError("Saved grid differs from report configuration")
     if sum(row["metadata"]["group"] == "short" for row in baseline) != 50 or sum(
             row["metadata"]["group"] == "long" for row in baseline) != 50:
         raise ValueError("Expected two 50-prompt strata")
 
     sweep = {}
-    common = {model: set(gold) for model in (*ACTIVE_PARAMS_B, "oracle")}
-    for cell in cells():
+    common = {model: set(gold) for model in (*active_params, "oracle")}
+    for cell in cells(active_params):
         model, link, compute = cell
         root = output / "cells" / "-".join(cell)
         stats = read_json(root / "summary.json")
         config = read_json(root / "replay.json")
-        if config["latency"] != latency_profile(*cell):
+        if config["latency"] != latency_profile(*cell, params=active_params):
             raise ValueError(f"Latency configuration differs for {root}")
         rows = read_requests(root / "requests.jsonl", jsonl=True)
         audits = read_json(root / "audit.json")
@@ -180,7 +181,7 @@ def report(output: Path) -> None:
             "effective_tflops": RATES[compute], "tokens_per_s": rate, "speedup_all": rate / greedy_rate,
             "matched_prompts": len(matched), "common_matched_prompts": len(stable),
             "speedup_common": paired_speedup(gold, requests, stable),
-            "projected_speedup_common": project_speedup(gold, ideal, ideal_audits, stable, cell),
+            "projected_speedup_common": project_speedup(gold, ideal, ideal_audits, stable, cell, active_params),
             "speedup_short_common": paired_speedup(gold, requests, [
                 key for key in stable if gold[key]["metadata"]["group"] == "short"]),
             "speedup_long_common": paired_speedup(gold, requests, [
@@ -205,11 +206,11 @@ def report(output: Path) -> None:
         writer.writeheader()
         writer.writerows(metrics)
 
-    best = max((row for row in metrics if row["model"] in ACTIVE_PARAMS_B),
+    best = max((row for row in metrics if row["model"] in active_params),
                key=lambda row: row["tokens_per_s"])
     lines = [
-        "# Gemma 4 speculative decoding interconnect and compute sweep", "",
-        f"**53/53 configurations**, each measured on 100 prompts with {MAX_TOKENS} output tokens, "
+        "# Speculative decoding interconnect and compute sweep", "",
+        f"**{len(metrics)} configurations**, each measured on 100 prompts with {MAX_TOKENS} output tokens, "
         "at concurrency 1. The greedy baseline ran at "
         f"**{greedy_rate:.2f} tok/s** with median TTFT of "
         f"{metrics[0]['ttft_p50_ms']:.1f} ms and median TPOT of {metrics[0]['tpot_p50_ms']:.2f} ms.",
@@ -221,7 +222,7 @@ def report(output: Path) -> None:
         "The input is an English first-turn sample from LMSYS-Chat-1M with 50 short and 50 long "
         "prompts. Prompts are paired across cells. Each cell has one untimed warm-up request. "
         "EOS was ignored to equalize decode lengths. Target and drafters use BF16. "
-        "The target is Gemma 4 31B on two PCIe A100s with PP2 and eager execution. "
+        f"The target is {workload['target']['model']}. "
         "The GPU verifies the recorded proposals while the proposer injects the configured delays.",
         "",
         *(
@@ -239,7 +240,7 @@ def report(output: Path) -> None:
         "| Drafter | Compute tier | Ideal link | NVLink | PCIe | HDR100 | Matched across cells |",
         "|---|---|---:|---:|---:|---:|---:|---:|",
     ]
-    for model in (*ACTIVE_PARAMS_B, "oracle"):
+    for model in (*active_params, "oracle"):
         for compute in (RATES if model != "oracle" else ["ideal"]):
             rates = " | ".join(f"{index[model, link, compute]['speedup_all']:.3f}×" for link in LINKS)
             lines.append(f"| {model} | {compute} | {rates} | {len(common[model])}/100 |")
@@ -267,7 +268,7 @@ def report(output: Path) -> None:
         "| Drafter | Common prompts | Ideal link | NVLink | PCIe | HDR100 |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    for model in ACTIVE_PARAMS_B:
+    for model in active_params:
         _, requests, audit, _ = sweep[model, "ideal", "ideal"]
         stable = sorted(common[model])
         audit = [row for row in audit if row["request_id"] in common[model]]
@@ -276,7 +277,7 @@ def report(output: Path) -> None:
         entries = []
         for link in LINKS:
             remaining = headroom - sum(modeled_link_ms(row, link) for row in audit)
-            entries.append(f"{2 * ACTIVE_PARAMS_B[model] * drafted / remaining:.4f}"
+            entries.append(f"{2 * active_params[model] * drafted / remaining:.4f}"
                            if remaining > 0 else "—")
         lines.append(f"| {model} | {len(stable)} | " + " | ".join(entries) + " |")
 
@@ -287,7 +288,7 @@ def report(output: Path) -> None:
         "| Drafter | Proposed tokens | Accepted tokens | Acceptance | Committed tokens per verification including bonus |",
         "|---|---:|---:|---:|---:|",
     ]
-    for model in (*ACTIVE_PARAMS_B, "oracle"):
+    for model in (*active_params, "oracle"):
         trace_path = output / "traces" / model / "trace.jsonl"
         with trace_path.open(encoding="utf-8") as stream:
             trace = load_trace(stream)
@@ -304,7 +305,7 @@ def report(output: Path) -> None:
         "Mean upload bytes/request | Mean download bytes/request | Prefix misses across cells |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    for model in (*ACTIVE_PARAMS_B, "oracle"):
+    for model in (*active_params, "oracle"):
         _, _, audits, _ = sweep[model, "hdr100", "ideal"]
         values = [statistics.mean(row[key] for row in audits)
                   for key in ("modeled_link_ms", "upload_bytes", "download_bytes")]
@@ -314,7 +315,7 @@ def report(output: Path) -> None:
                      f"{values[1]:.0f} | {values[2]:.0f} | {misses} |")
     measured_spans = []
     projected_spans = []
-    for model in (*ACTIVE_PARAMS_B, "oracle"):
+    for model in (*active_params, "oracle"):
         if not common[model]:
             continue
         for compute in (RATES if model != "oracle" else ["ideal"]):

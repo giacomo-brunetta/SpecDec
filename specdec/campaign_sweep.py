@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import itertools
+import math
+import re
 import json
 import os
 import random
@@ -33,10 +35,27 @@ ORDER_SEED = 555
 CAPTURE_BATCH = 8
 
 
-def latency_profile(model: str, link_name: str, compute: str) -> dict:
+def drafter_models(plan: Path, target: dict) -> dict:
+    configured = json.loads(plan.read_text()).get("drafters")
+    if configured is None:
+        configured = {
+            name: {"model": str(Path(target["model"]).with_name(f"gemma-4-{name}-it")),
+                   "active_params_b": count} for name, count in ACTIVE_PARAMS_B.items()
+        }
+    if not configured:
+        raise ValueError("Configure at least one drafter")
+    for name, spec in configured.items():
+        if (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name)
+                or name in {"oracle", "greedy"} or not spec["model"]
+                or not math.isfinite(spec["active_params_b"]) or spec["active_params_b"] <= 0):
+            raise ValueError(f"Invalid drafter settings for {name!r}")
+    return configured
+
+
+def latency_profile(model: str, link_name: str, compute: str, params=ACTIVE_PARAMS_B) -> dict:
     rate = RATES[compute]
     # 1 GFLOP / (1 TFLOP/s) = 1 ms.
-    token_ms = 2 * ACTIVE_PARAMS_B[model] / rate if rate else 0
+    token_ms = 2 * params[model] / rate if rate else 0
     link = LINKS[link_name]
     return {
         "round_trip_ms": link.get("round_trip_ms", 0),
@@ -48,11 +67,11 @@ def latency_profile(model: str, link_name: str, compute: str) -> dict:
     }
 
 
-def cells() -> list[tuple[str, str, str]]:
-    grid = list(itertools.product(ACTIVE_PARAMS_B, LINKS, RATES))
+def cells(params=ACTIVE_PARAMS_B) -> list[tuple[str, str, str]]:
+    grid = list(itertools.product(params, LINKS, RATES))
     grid += [("oracle", link, "ideal") for link in LINKS]
     random.Random(ORDER_SEED).shuffle(grid)
-    preflight = [("oracle", "ideal", "ideal"), ("E2B", "ideal", "ideal")]
+    preflight = [("oracle", "ideal", "ideal"), (next(iter(params)), "ideal", "ideal")]
     return [*preflight, *(cell for cell in grid if cell not in preflight)]
 
 
@@ -62,7 +81,7 @@ def jsonl(rows):
 
 def drafter_trace(
     output: Path, target: dict, model: str, targets: list[dict],
-    *, before_capture: Callable[[], None] | None = None,
+    *, checkpoint: str | None = None, before_capture: Callable[[], None] | None = None,
 ) -> Path:
     root = output / "traces" / model
     trace_path = root / "trace.jsonl"
@@ -71,8 +90,8 @@ def drafter_trace(
     root.mkdir(parents=True, exist_ok=True)
     server = {
         **target,
-        "model": str(Path(target["model"]).with_name(f"gemma-4-{model}-it")),
-        "served_model_name": f"gemma-4-{model}-it",
+        "model": checkpoint or str(Path(target["model"]).with_name(f"gemma-4-{model}-it")),
+        "served_model_name": model,
         "pipeline_parallel_size": 1, "gpu_memory_utilization": 0.92,
         "extra_args": [
             "--enforce-eager", "--language-model-only",
@@ -187,7 +206,7 @@ def audit_replay(targets, requests, trace, log: Path) -> list[dict]:
     return audits
 
 
-def run_cell(output, target, greedy, workload, targets, trace_path, cell):
+def run_cell(output, target, greedy, workload, targets, trace_path, cell, params=ACTIVE_PARAMS_B):
     model, link, compute = cell
     name = f"{model}-{link}-{compute}"
     root = output / "cells" / name
@@ -196,7 +215,7 @@ def run_cell(output, target, greedy, workload, targets, trace_path, cell):
     if root.exists():
         root.rename(root.with_name(f"{root.name}.incomplete-{time.time_ns()}"))
     root.mkdir(parents=True)
-    profile = latency_profile(*cell)
+    profile = latency_profile(*cell, params=params)
     LatencyProfile(**profile)
     config = root / "replay.json"
     write_checkpoint(config, {
@@ -226,13 +245,26 @@ def run_cell(output, target, greedy, workload, targets, trace_path, cell):
 
 
 def sweep(plan: Path, dataset: Path, output: Path) -> None:
+    output.mkdir(parents=True, exist_ok=True)
+    saved_plan = output / "plan.json"
+    if saved_plan.exists() and json.loads(saved_plan.read_text()) != json.loads(plan.read_text()):
+        raise ValueError("Plan changed; use a fresh output directory for a new campaign")
+    if not saved_plan.exists():
+        saved_plan.write_bytes(plan.read_bytes())
+    saved_workload = output / "workload.jsonl"
+    if not saved_workload.exists():
+        saved_workload.write_bytes(dataset.read_bytes())
+    elif saved_workload.read_bytes() != dataset.read_bytes():
+        raise ValueError("Workload changed in this run directory")
     baseline(plan, dataset, output)
     workload = read_jsonl(dataset)
     targets = json.loads((output / "baseline.json").read_text(encoding="utf-8"))
     target, greedy = read_scenario(plan, "baseline")
-    order = cells()
+    models = drafter_models(plan, target)
+    params = {name: spec["active_params_b"] for name, spec in models.items()}
+    order = cells(params)
     write_checkpoint(output / "grid.json", {
-        "active_params_billions": ACTIVE_PARAMS_B, "effective_tflops": RATES,
+        "active_params_billions": params, "effective_tflops": RATES,
         "links": LINKS, "seed": ORDER_SEED, "order": order,
         "plan_sha256": hashlib.sha256(plan.read_bytes()).hexdigest(),
     })
@@ -240,9 +272,9 @@ def sweep(plan: Path, dataset: Path, output: Path) -> None:
     for cell in order:
         model = cell[0]
         if model not in traces:
-            traces[model] = drafter_trace(output, target, model, targets)
-        run_cell(output, target, greedy, workload, targets, traces[model], cell)
-    print("All 52 replay cells complete", flush=True)
+            traces[model] = drafter_trace(output, target, model, targets, checkpoint=models.get(model, {}).get("model"))
+        run_cell(output, target, greedy, workload, targets, traces[model], cell, params)
+    print(f"All {len(order)} replay cells complete", flush=True)
 
 
 def main():

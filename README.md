@@ -1,5 +1,7 @@
 # SpecDec
 
+[Reproduce the speculative decoding study or run another model](docs/study.md) · [Gemma reference measurements](reference/gemma4)
+
 Scaffold for comparing Gemma 4 31B generation with speculative decoding off and
 with selected drafter methods. The benchmark matrix and workload are
 intentionally left configurable until they are specified.

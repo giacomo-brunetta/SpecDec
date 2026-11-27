@@ -41,8 +41,8 @@ def profile_args(link: str) -> dict:
     }
 
 
-def rows_from_log(path: Path, records: list[dict], method: str, link: str) -> list[dict]:
-    model = SPECULATORS[method]
+def rows_from_log(path: Path, records: list[dict], method: str, link: str, speculators=SPECULATORS) -> list[dict]:
+    model = speculators[method]
     profile = LatencyProfile(**profile_args(link))
     audited = []
     with path.open("rb") as log:
@@ -80,7 +80,7 @@ def rows_from_log(path: Path, records: list[dict], method: str, link: str) -> li
 
 
 def run_cell(output: Path, server: dict, baseline: dict, workload: list[dict],
-             cell: tuple[str, str], env: dict) -> None:
+             cell: tuple[str, str], env: dict, speculators=SPECULATORS) -> None:
     method, link = cell
     root = output / f"{method}-{link}"
     result = root / "result.json"
@@ -91,13 +91,13 @@ def run_cell(output: Path, server: dict, baseline: dict, workload: list[dict],
     cell_env = {**env, ENV: ""}
     log_path = None
     if method != "greedy":
-        draft = SPECULATORS[method]
+        draft = speculators[method]
         log_path = root / "rounds.jsonl"
         log_path.write_text("", encoding="utf-8")
         scenario["speculative_config"] = {
-            "model": f"RedHatAI/gemma-4-31B-it-speculator.{method}",
+            "model": draft.get("model", f"RedHatAI/gemma-4-31B-it-speculator.{method}"),
             "method": method,
-            "revision": draft["revision"],
+            **({"revision": draft["revision"]} if draft.get("revision") else {}),
             "num_speculative_tokens": draft["k"],
             "enable_adaptive_verification": False,
         }
@@ -106,11 +106,11 @@ def run_cell(output: Path, server: dict, baseline: dict, workload: list[dict],
     with running_scenario(server, scenario, root / "server.log", env=cell_env) as driver:
         records, summary = measure(driver, workload, root / "requests.jsonl", step_log=log_path)
     if log_path is not None:
-        records = rows_from_log(log_path, records, method, link)
+        records = rows_from_log(log_path, records, method, link, speculators)
     write_checkpoint(result, {"records": records, "summary": summary})
 
 
-def report(output: Path, cells: list[tuple[str, str]]) -> None:
+def report(output: Path, cells: list[tuple[str, str]], speculators=SPECULATORS) -> None:
     def read_cell(method, link):
         return json.loads((output / f"{method}-{link}" / "result.json").read_text())
 
@@ -136,7 +136,7 @@ def report(output: Path, cells: list[tuple[str, str]]) -> None:
         link_times = [r["modeled_link_ms"] for r in requests] if spec else []
         projected_seconds = ideal["summary"]["wall_time_seconds"] + sum(link_times) / 1000
         rows.append({
-            "method": method, "link": link, "k": SPECULATORS.get(method, {}).get("k", 0),
+            "method": method, "link": link, "k": speculators.get(method, {}).get("k", 0),
             "requests": len(requests), "tokens_per_second": rate,
             "speedup_vs_greedy": rate / greedy_rate, "throughput_ratio_vs_ideal": rate / ideal_rate,
             "projected_tokens_per_second": (
@@ -189,11 +189,14 @@ def main() -> None:
     if args.smoke:
         by_length = sorted(workload, key=lambda r: r["metadata"]["prompt_tokens"])
         workload = [by_length[0], by_length[-1]]
+    speculators = json.loads(args.plan.read_text()).get("speculators", SPECULATORS)
+    if not speculators or set(speculators) - set(SPECULATORS):
+        parser.error("Choose one or both supported native methods: eagle3 and dspark")
     links = ("ideal",) if args.smoke else LINKS
-    cells = [(method, link) for method in SPECULATORS for link in links]
+    cells = [(method, link) for method in speculators for link in links]
     physical = [cell for cell in cells if cell[1] != "ideal"]
     random.Random(ORDER_SEED).shuffle(physical)
-    order = [(method, "ideal") for method in SPECULATORS] + physical
+    order = [(method, "ideal") for method in speculators] + physical
     env = {
         "VLLM_USE_V2_MODEL_RUNNER": "1",
         "VLLM_USE_FLASHINFER_SAMPLER": "0",
@@ -205,7 +208,7 @@ def main() -> None:
         "dataset_sha256": hashlib.sha256(args.dataset.read_bytes()).hexdigest(),
         "request_ids": [r["id"] for r in workload],
         "server": server, "baseline": baseline, "env": env,
-        "links": LINKS, "speculators": SPECULATORS, "cell_order": order,
+        "links": LINKS, "speculators": speculators, "cell_order": order,
         "max_tokens": MAX_TOKENS, "vllm": "0.31.0", "warmup_requests": 1,
     }
     path = output / "manifest.json"
@@ -213,8 +216,8 @@ def main() -> None:
         parser.error(f"Existing run at {output} has different settings")
     write_checkpoint(path, manifest)
     for cell in [("greedy", "ideal"), *order]:
-        run_cell(output, server, baseline, workload, cell, env)
-    report(output, [("greedy", "ideal"), *cells])
+        run_cell(output, server, baseline, workload, cell, env, speculators)
+    report(output, [("greedy", "ideal"), *cells], speculators)
 
 
 if __name__ == "__main__":
