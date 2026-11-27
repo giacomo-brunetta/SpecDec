@@ -1,0 +1,22 @@
+{
+  "server": {
+    "model": "google/gemma-4-31B-it",
+    "dtype": "bfloat16",
+    "tensor_parallel_size": 2,
+    "pipeline_parallel_size": 1,
+    "max_model_len": 1024,
+    "gpu_memory_utilization": 0.94,
+    "extra_args": [
+      "--language-model-only",
+      "--enforce-eager",
+      "--max-num-seqs", "1",
+      "--max-num-batched-tokens", "1024",
+      "--no-enable-chunked-prefill",
+      "--no-enable-prefix-caching",
+      "--no-async-scheduling"
+    ]
+  },
+  "scenarios": {
+    "baseline": { "enabled": true }
+  }
+}

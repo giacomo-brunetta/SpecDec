@@ -72,22 +72,30 @@ class LatencyProfile:
         else:
             download += kv_bytes
         steps = max((p.draft_tokens for p in batch), default=0)
+        transfer = self.transfer(upload, download, active=bool(batch))
+        compute = self.first_token_ms + (steps - 1) * self.tbt_ms if steps else 0
+        return {
+            **transfer,
+            "kv_bytes": kv_bytes,
+            "first_token_ms": self.first_token_ms if steps else 0,
+            "tbt_ms": (steps - 1) * self.tbt_ms if steps else 0,
+            "total_ms": transfer["total_ms"] + compute,
+        }
+
+    def transfer(self, upload: int, download: int, *, active: bool = True) -> dict[str, float | int]:
+        """Estimate a round trip for an explicitly sized wire payload."""
         upload_ms = (
             1000 * upload / self.upload_bytes_per_second if self.upload_bytes_per_second else 0
         )
         download_ms = (
             1000 * download / self.download_bytes_per_second if self.download_bytes_per_second else 0
         )
-        round_trip = self.round_trip_ms if batch else 0
-        compute = self.first_token_ms + (steps - 1) * self.tbt_ms if steps else 0
+        round_trip = self.round_trip_ms if active else 0
         return {
             "upload_bytes": upload,
             "download_bytes": download,
-            "kv_bytes": kv_bytes,
             "round_trip_ms": round_trip,
             "upload_ms": upload_ms,
             "download_ms": download_ms,
-            "first_token_ms": self.first_token_ms if steps else 0,
-            "tbt_ms": (steps - 1) * self.tbt_ms if steps else 0,
-            "total_ms": round_trip + upload_ms + download_ms + compute,
+            "total_ms": round_trip + upload_ms + download_ms,
         }

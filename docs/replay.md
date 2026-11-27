@@ -78,6 +78,9 @@ baseline and replay workload drift. For standalone replay set
 `SPECDEC_REPLAY_CONFIG` to a JSON file with a `trace` path, optional `latency`
 object, and optional `log` path. Relative paths resolve from that file.
 
+The [interconnect experiment](interconnect-experiment.md) provides reference
+profiles for direct NVLink, host-staged PCIe, and host-staged InfiniBand.
+
 ## Shared accelerator queue
 
 Run `python -m specdec.replay_queue path/to/steps.jsonl` to estimate queue

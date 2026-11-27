@@ -12,6 +12,18 @@ from pathlib import Path
 from .latency import LatencyProfile, Proposal
 
 
+def wait_until_deadline(seconds: float) -> None:
+    # Sleep through the bulk of longer waits, then spin to avoid scheduler
+    # granularity dominating the tens-of-microseconds link profiles.
+    deadline = time.perf_counter() + seconds
+    spin_window = 0.0002
+    remaining = deadline - time.perf_counter()
+    if remaining > spin_window:
+        time.sleep(remaining - spin_window)
+    while time.perf_counter() < deadline:
+        pass
+
+
 @dataclass(frozen=True)
 class TraceEntry:
     draft: tuple[int, ...]
@@ -114,6 +126,7 @@ class ReplayProposer:
                 load_trace(rows),
                 vllm_config.speculative_config.num_speculative_tokens,
                 LatencyProfile(**config.get("latency", {})),
+                wait=wait_until_deadline if config.get("deadline_wait") else time.sleep,
                 log=self.write_log if self.log_path else None,
                 strict=config.get("strict", True),
             )

@@ -1,0 +1,48 @@
+diff --git a/vllm/v1/worker/gpu/model_runner.py b/vllm/v1/worker/gpu/model_runner.py
+index c2f2997..0b0715d 100644
+--- a/vllm/v1/worker/gpu/model_runner.py
++++ b/vllm/v1/worker/gpu/model_runner.py
+@@ -18,6 +18,7 @@ instead of embedding feature-specific logic directly.
+ 
+ import functools
+ import gc
++import os
+ import time
+ from contextlib import AbstractContextManager
+ from copy import deepcopy
+@@ -37,7 +38,7 @@ from vllm.distributed.aux_output_connector.worker import (
+     AuxOutputWorkerConnector,
+     get_aux_output_connector,
+ )
+-from vllm.distributed.parallel_state import get_dcp_group, get_pp_group
++from vllm.distributed.parallel_state import get_dcp_group, get_pp_group, get_tp_group
+ from vllm.forward_context import BatchDescriptor, set_forward_context
+ from vllm.logger import init_logger
+ from vllm.model_executor.layers.fused_moe.all2all_utils import get_ep_all2all_manager
+@@ -2216,6 +2217,26 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                     dp_sync=dp_sync,
+                     mm_inputs=mm_inputs,
+                 )
++            specdec_link = os.getenv("SPECDEC_NATIVE_LINK")
++            if specdec_link:
++                from specdec.native_link import finish_round
++
++                assert aux_hidden_states
++                positions = input_batch.num_tokens
++                finish_round(
++                    specdec_link,
++                    activation_bytes=sum(
++                        h[:positions].numel() * h.element_size()
++                        for h in aux_hidden_states
++                    ),
++                    positions=positions,
++                    requests=input_batch.num_reqs,
++                    draft_tokens=draft_tokens.numel(),
++                    verified_tokens=input_batch.num_draft_tokens,
++                    sampled_count=num_sampled.item,
++                    synchronize=self.main_stream.synchronize,
++                    log_rank=get_tp_group().rank_in_group == 0,
++                )
+             self.req_states.draft_tokens[input_batch.idx_mapping] = draft_tokens
+             if self.adaptive_verification is not None:
+                 self.adaptive_verification.record_confidences(

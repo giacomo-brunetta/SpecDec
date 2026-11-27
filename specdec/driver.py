@@ -47,8 +47,11 @@ class Driver:
         return result
 
     def complete_tokens(self, prefix: list[int], max_tokens: int) -> list[int]:
+        return self.complete_token_batch([prefix], max_tokens)[0]
+
+    def complete_token_batch(self, prefixes: list[list[int]], max_tokens: int) -> list[list[int]]:
         body = {
-            "model": self.model, "prompt": prefix, "max_tokens": max_tokens,
+            "model": self.model, "prompt": prefixes, "max_tokens": max_tokens,
             "ignore_eos": True, "temperature": 0, "return_token_ids": True,
         }
         request = urllib.request.Request(
@@ -56,12 +59,14 @@ class Driver:
             data=json.dumps(body).encode(), headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
-            result = json.load(response)
-        tokens = result["choices"][0].get("token_ids")
-        if not isinstance(tokens, list):
-            raise RuntimeError("Drafter did not return token IDs")
-        return tokens
-
+            choices = json.load(response)["choices"]
+        choices.sort(key=lambda choice: choice["index"])
+        if [choice["index"] for choice in choices] != list(range(len(prefixes))):
+            raise RuntimeError("Drafter returned unexpected completion indices")
+        proposals = [choice.get("token_ids") for choice in choices]
+        if any(not isinstance(tokens, list) or len(tokens) != max_tokens for tokens in proposals):
+            raise RuntimeError(f"Drafter did not return {max_tokens} token IDs per prefix")
+        return proposals
 
 
 @contextlib.contextmanager
