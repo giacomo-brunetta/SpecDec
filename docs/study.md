@@ -73,3 +73,5 @@ python scripts/specdec-native-audit.py "$NATIVE_OUT" "$RUN/workload.jsonl"
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+For fixed-budget and histogram figures, run `python scripts/figures/tree_acceptance.py --output "$OUT" --model 12B`. The [reference input manifest](../reference/gemma4/README.md) records all four checkpoint revisions, the Arrow cache revision and the workload checksum. The workload selector loads its tokenizer locally, so download the target snapshot before selection.
